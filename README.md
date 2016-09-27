@@ -2,6 +2,7 @@
 Collection of tests written in pure Matlab compatible with McLabCore limitations
 
 Usage:
+
    npm install
    ./compile
    node_modules/tap/bin/run.js builds
