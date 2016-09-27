@@ -10,6 +10,8 @@ parser.add_argument('test', nargs='*', type=str,
                    help='the path to the matlab test to execute')
 parser.add_argument('--exclude', nargs='+', type=str, 
                    help='the path to the matlab test to exclude')
+parser.add_argument('--concatenate', action="store_true",
+                   help='concatenate all tests into a single file before compilation (useful for coverage testing)')
 args, unknown = parser.parse_known_args()
 
 def line_prepender(filename, line):
@@ -19,24 +21,36 @@ def line_prepender(filename, line):
         f.write(line.rstrip('\r\n') + '\n' + content)
 
 if len(args.test) == 0:
-    tests = [t for t in  os.listdir('tests') if re.match('.*\.m$', t) ]
+    tests = [os.path.join('tests', t) for t in  os.listdir('tests') if re.match('.*\.m$', t) ]
 else:
-    tests = [os.path.basename(t) for t in args.test]
+    tests = args.test
 
-runnable = []
-
+if args.concatenate:
+    maintest = 'builds/main_test.m'
+    print 'Concatenating ' + ','.join(tests) + ' into ' + maintest
+    functions = []
+    mainbody = []
+    for t in tests:
+        f = os.path.basename(t)
+        func = os.path.splitext(f)[0]
+        with open(os.path.join('tests', f)) as testfile:
+            functions.append(testfile.read())
+        mainbody.append(func + "(x);")
+    with open(maintest, 'a') as mainfile:
+        mainfile.write('function main_test(x)\n' + '\n'.join(mainbody) + '\nend\n')
+        mainfile.write('\n'.join(functions))
+    tests = [maintest]
 
 for t in tests:
-    print 'Compiling ' + os.path.join('tests', t)
+    print 'Compiling ' + t
     f = os.path.basename(t)
     func = os.path.splitext(f)[0]
     outfile = os.path.join('builds', func + '.js')
     if os.path.isfile(outfile):
         subprocess.check_call(['rm', outfile])
-    cmd = ['compilers/matjuice-v1.1.0/matjuice', os.path.join('tests', t), outfile, 'DOUBLE&1*1&REAL']
+    cmd = ['compilers/matjuice-v1.1.0/matjuice', t, outfile, 'DOUBLE&1*1&REAL']
     output = subprocess.check_output(cmd)
     line_prepender(outfile, "var tap = require('tap');\n")
     with open(outfile, "a") as myfile:
         myfile.write("\n" + func + "();\n tap.pass();\n")
-    runnable.append(outfile)
 
