@@ -31,7 +31,8 @@ for t in tests:
     f = os.path.basename(t)
     func = os.path.splitext(f)[0]
     outfile = os.path.join('builds', func + '.js')
-    subprocess.check_call(['rm', outfile])
+    if os.path.isfile(outfile):
+        subprocess.check_call(['rm', outfile])
     cmd = ['compilers/matjuice-v1.1.0/matjuice', os.path.join('tests', t), outfile, 'DOUBLE&1*1&REAL']
     output = subprocess.check_output(cmd)
     line_prepender(outfile, "var tap = require('tap');\n")
