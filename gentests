@@ -1,0 +1,413 @@
+#!/usr/bin/env python
+import json
+import os
+import jupyter_client
+import json
+import random
+import math
+
+binops = [
+    "plus",
+    "minus",
+    "rem",
+    "mod",
+    "mtimes",
+    "times",
+    "mrdivide",
+    "mldivide",
+    "ldivide",
+    "rdivide",
+    "lt",
+    "gt",
+    "le",
+    "ge",
+    "eq",
+    "ne",
+    "mpower",
+    "power",
+    "max",
+    "min",
+    "and",
+    "or",
+    "xor",
+    #"complex",
+    #"dot",
+    #"atan2",
+    #"hypot",
+    #"bitand",
+    #"bitor",
+    #"bitxor",
+    #"bitcmp",
+    #"isequal",
+    #"isequaln",
+    #"blkdiag",
+]
+
+unops = [
+    "length",
+    "floor",
+    "ceil",
+    "sin",
+    "cos",
+    "tan",
+    "sqrt",
+    #"realsqrt",
+    "uminus",
+    "round",
+    #"randi",
+    "exp",
+    "log",
+    "abs",
+    "transpose",
+    #"ctranspose",
+    "mean",
+    "any",
+    "fix",
+    "not",
+    "tril",
+    "triu",
+    "diag",
+    #"real",
+    #"imag",
+    #"conj",
+    #"sign",
+    "uplus",
+    #"complex",
+    "median",
+    "min",
+    "max",
+    #"erf",
+    #"erfinv",
+    #"erfc",
+    #"erfcinv",
+    #"gamma",
+    #"gammaln",
+    "log2",
+    "log10",
+    #"cot",
+    #"sec",
+    #"csc",
+    #"sind",
+    #"cosd",
+    #"tand",
+    #"cotd",
+    #"secd",
+    #"cscd",
+    #"sinh",
+    #"cosh",
+    #"tanh",
+    #"coth",
+    #"sech",
+    #"csch",
+    #"asin",
+    #"acos",
+    #"atan",
+    #"acot",
+    #"asec",
+    #"acsc",
+    #"asind",
+    #"acosd",
+    #"atand",
+    #"acotd",
+    #"asecd",
+    #"acscd",
+    #"asinh",
+    #"acosh",
+    #"atanh",
+    #"acoth",
+    #"asech",
+    #"acsch",
+    #"logm",
+    #"sqrtm",
+    #"expm",
+    #"inv",
+    #"eps",
+    #"cumsum",
+    #"cumprod",
+    #"mode",
+    #"prod",
+    #"eig",
+    #"norm",
+    #"rank",
+    #"cond",
+    #"det",
+    #"rcond",
+    #"lu",
+    #"chol",
+    #"svd",
+    #"qr",
+    #"class",
+    "size",
+    "ndims",
+    "numel",
+    #"find",
+    #"nnz",
+    #"all",
+    #"isreal",
+    #"isinf",
+    #"isfinite",
+    #"isnan",
+    #"magic",
+    #"eye",
+    #"double",
+    #"single",
+    #"char",
+    #"logical",
+    #"int8",
+    #"int16",
+    #"int32",
+    #"int64",
+    #"uint8",
+    #"uint16",
+    #"uint32",
+    #"uint64",
+    #"cell",
+    #"sort",
+    #"unique",
+    #"isobject",
+    #"isfloat",
+    #"isinteger",
+    #"islogical",
+    #"isstruct",
+    #"ischar",
+    #"iscell",
+    #"isnumeric",
+    #"isempty",
+    #"isvector",
+    #"isscalar",
+    #"squeeze",
+    #"randperm",
+    #"sparse",
+    #"var",
+    #"std",
+]
+
+zeroops = [
+    "rand",
+    "randn",
+    "randi",
+    "pi",
+    "i",
+    "j",
+    "eps",
+    "inf",
+    "nan",
+    "true",
+    "false",
+    "realmax",
+    "realmin"
+]
+
+others = [
+    "tic",
+    "toc",
+    "resize",
+    "diag",
+    "cross",
+    "eig",
+    "linsolve",
+    "schur",
+    "ordschur",
+    "bitset",
+    "bitget",
+    "bitshift",
+    "colon",
+    "ones",
+    "zeros",
+    "cellhorzcat",
+    "cellvertcat",
+    "isa",
+    "reshape",
+    "permute",
+    "horzcat",
+    "vertcat",
+    "cat",
+]
+
+oriented_along_dim = [
+    "sum",
+    "cumsum",
+    "cumprod",
+    "prod",
+    "mean"
+]
+
+verbose = False
+km = None
+client = None
+__dirname = os.path.dirname(os.path.abspath(__file__))
+
+def start(name):
+    global client
+    global km
+    km = jupyter_client.KernelManager(kernel_name=name)
+    km.start_kernel()
+    client = km.blocking_client()
+    msg = client.get_iopub_msg()
+    while not (msg['msg_type'] == 'status' and
+            msg['content']['execution_state'] == 'starting'):
+        msg = client.get_iopub_msg()
+
+def execute(code):
+    if verbose:
+        print "executing input '%s'"%code
+    global client
+    outputs = []
+    msg = None
+    client.execute(code)
+    msg = client.get_iopub_msg()
+    while not (msg['msg_type'] == 'status' and
+            msg['content']['execution_state'] == 'idle'):
+        if msg['msg_type'] == 'stream':
+            outputs.append(msg['content'])
+        msg = client.get_iopub_msg()
+    return outputs
+
+def parse(output):
+    try:
+        return json.loads(output[0]['text'])['output']
+    except:
+        return None
+    
+
+def encode(expr):
+    return "output=(%s); disp(savejson('output', output));"%expr
+
+def pythontomatlabstr(v):
+    if type(v) == int:
+        return str(v)
+    elif type(v) == float:
+        return str(v)
+    elif type(v) == unicode:
+        if v == unicode('_NaN_'):
+            return 'NaN' 
+        elif v == unicode('_Inf_'):
+            return 'Inf' 
+        elif v == unicode('-_Inf_'):
+            return '-Inf' 
+        else:
+            raise Exception('unrecognized type ' + str(type(v)) + ' for value ' + str(v))
+    elif type(v) == type(None):
+        return '[]'
+    elif type(v) == list:
+        sep = ';' if len(v) > 0 and type(v[0]) == list else ' '
+        return '[' + sep.join(map(lambda x: pythontomatlabstr(x), v)) + ']'
+    else:
+        raise Exception('unrecognized type ' + str(type(v)) + ' for value ' + str(v))
+
+def addpath(p):
+    return execute("addpath('%s')"%p)
+
+def test(o):
+    matlabstr = pythontomatlabstr(o)
+    if verbose:
+        print 'matlabstr: %s '%str(matlabstr)
+    inp = encode(matlabstr)
+    if verbose:
+        print "input: '%s'"%inp
+    out = execute(inp)
+    if verbose:
+        print 'output: %s'%out
+    jsonout = parse(out)
+    if verbose:
+        print 'jsonout: %s'%str(jsonout)
+    return pythontomatlabstr(jsonout)
+
+def get_matlab_result(code):
+    inp = encode(code)
+    if verbose:
+        print "input: '%s'"%inp
+    out = execute(inp)
+    if verbose:
+        print 'output: %s'%out
+    jsonout = parse(out)
+    if jsonout == None:
+        return None
+    if verbose:
+        print 'jsonout: %s'%str(jsonout)
+    return pythontomatlabstr(jsonout)
+
+def gen_int_scalar():
+    return random.randint(-10,10)
+
+def gen_float_scalar():
+    return random.random() * 10 - 5
+
+def gen_matrix(fn,row_nb,col_nb):
+    return [[fn() for j in range(col_nb)] for i in range(row_nb)] 
+
+def gen_binop_fn_tests(fn, xs, ys):
+    if type(xs) != list:
+        xs = [xs]
+    if type(ys) != list:
+        ys = [ys]
+    calls = []
+    for x in xs:
+        for y in ys:
+            call = "%s(%s,%s)"%(fn,x,y)
+            calls.append(call)
+    return calls
+
+def gen_binop_op_tests(xs, op, ys):
+    if type(xs) != list:
+        xs = [xs]
+    if type(ys) != list:
+        ys = [ys]
+    calls = []
+    for x in xs:
+        for y in ys:
+            call = "(%s %s %s)"%(x,op,y)
+            calls.append(call)
+    return calls
+
+def gen_unop_fn_tests(fn, xs):
+    calls = []
+    for x in xs:
+        call = "%s(%s)"%(fn,x)
+        calls.append(call)
+    return calls
+
+def gen_unop_op_tests(op, xs):
+    calls = []
+    for x in xs:
+        call = "(%s%s)"%(op,x)
+        calls.append(call)
+    return calls
+
+def gen_assert(call):
+    expected_result = get_matlab_result(call)
+    if expected_result == None:
+        return "%% Call '%s' produces an error"%call
+    else:
+        return 'assert(isequal(%s,%s));'%(call,expected_result)
+
+if __name__ == "__main__":
+    start('matlab_kernel')
+    addpath(os.path.join(__dirname, 'jsonlab'))
+    
+    random.seed(1337)
+    xs = [ gen_int_scalar() for i in range(3) ] + [0,1,-1,'NaN','+Inf','-Inf']
+    ys = [ gen_int_scalar() for i in range(3) ] + [0,1,-1,'NaN','+Inf','-Inf']
+
+    Xs = map(pythontomatlabstr, ([ gen_matrix(gen_int_scalar, 3, 1) for i in range(3) ] +
+          [ gen_matrix(gen_int_scalar, 1, 3) for i in range(3) ] +
+          [ gen_matrix(gen_int_scalar, 2, 3) for i in range(3) ] +
+          [ gen_matrix(gen_int_scalar, 3, 4) for i in range(3) ]))
+
+    Ys = map(pythontomatlabstr, ([ gen_matrix(gen_int_scalar, 3, 1) for i in range(3) ] +
+          [ gen_matrix(gen_int_scalar, 1, 3) for i in range(3) ] +
+          [ gen_matrix(gen_int_scalar, 3, 4) for i in range(3) ]))
+    try:
+        for op in ['+']:
+            for call in gen_binop_op_tests(Xs, op, Ys):
+                print gen_assert(call)
+            print ""
+    finally:
+        client.shutdown()
+        
+        
+
+    #actual_outputs = parse(execute(encode('zeros(2,2,2)')))
+    #print type(actual_outputs)
+    #print json.dumps(actual_outputs)
+    #client.shutdown()
