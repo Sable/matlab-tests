@@ -31,3 +31,9 @@ To regenerate the tests that were automatically generated install the following:
 then run:
  
     ./gentests
+
+Note that the generation of the tests hangs when generating multiple tests in a
+row. It may be due to an internal communication buffer getting full without
+being flushed out. However, for lack of time to debug the issue in the meantime
+you can simply generate tests one-by-one or restart the generation where it
+hanged before using the --binop_start_index N or --unop_start_index M commandline options.
